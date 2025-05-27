@@ -11,6 +11,7 @@ import { NotesProvider, useNotes, type Note } from "@/contexts/NotesContext";
 import { Plus, FileText } from "lucide-react";
 
 function DashboardContent() {
+  const [message, setMessage] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const {
@@ -23,6 +24,19 @@ function DashboardContent() {
   } = useNotes();
 
   const { user } = useAuth();
+
+  useEffect(() => {
+    const firstName = user?.name?.split(" ")[0] || "User";
+    const welcomeMessages = [
+      `Hey ${firstName}, ready to note something down?`,
+      `${firstName}, let’s get productive today!`,
+      `What's on your mind today, ${firstName}?`,
+      `${firstName}, all your ideas live here.`,
+      `Hello ${firstName}! Your notes are just a scroll away.`
+    ];
+    const randomIndex = Math.floor(Math.random() * welcomeMessages.length);
+    setMessage(welcomeMessages[randomIndex]);
+  }, [user]);
 
   useEffect(() => {
     fetchNotes();
@@ -72,12 +86,16 @@ function DashboardContent() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-normal text-foreground">
-              {user?.name}'s Notes
+            
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-normal text-foreground">
+              {message}
             </h2>
+            <p className="font-normal text-sm mt-2 text-gray-500">
+              All your thoughts, ideas, and plans in one place.
+            </p>
             <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               {filteredNotes.length}{" "}
-              {filteredNotes.length === 1 ? "note" : "notes"}
+              {filteredNotes.length === 1 ? "note currently" : "notes currently"}
             </p>
           </div>
           <button

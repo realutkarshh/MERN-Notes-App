@@ -17,13 +17,11 @@ app.get('/', (req, res) => {
   res.json({ message: 'Server is working!' });
 });
 
-// app.use(cors({
-//   origin: 'http://localhost:3000', // allow this origin
-//   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-//   credentials: true // if you're using cookies
-// }));
-
-app.use(cors({ origin: '*' }));
+app.use(cors({
+  origin: 'http://localhost:3000', // allow this origin
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true // if you're using cookies
+}));
 
 // const allowedOrigins = [
 //   'http://localhost:3000',

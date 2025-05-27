@@ -1,0 +1,253 @@
+# Notes App Complete API Documentation
+
+## Base URL
+```
+http://localhost:5000/api
+```
+
+## Authentication APIs
+
+### Register User
+```
+POST /api/auth/register
+Content-Type: application/json
+
+Request Body:
+{
+  "name": "string (required)",
+  "email": "string (required, unique)",
+  "password": "string (required, min 6 characters)"
+}
+
+Success Response (201):
+{
+  "success": true,
+  "token": "jwt_token_string",
+  "user": {
+    "id": "user_id",
+    "name": "user_name",
+    "email": "user_email"
+  }
+}
+
+Error Responses:
+400: { "success": false, "error": "Please provide name, email, and password" }
+400: { "success": false, "error": "Password must be at least 6 characters" }
+400: { "success": false, "error": "User with this email already exists" }
+500: { "success": false, "error": "Internal Server Error" }
+```
+
+### Login User
+```
+POST /api/auth/login
+Content-Type: application/json
+
+Request Body:
+{
+  "email": "string (required)",
+  "password": "string (required)"
+}
+
+Success Response (200):
+{
+  "success": true,
+  "token": "jwt_token_string",
+  "user": {
+    "id": "user_id",
+    "name": "user_name",
+    "email": "user_email"
+  }
+}
+
+Error Responses:
+400: { "success": false, "error": "Please provide email and password" }
+400: { "success": false, "error": "Invalid credentials" }
+500: { "success": false, "error": "Internal Server Error" }
+```
+
+## Notes APIs (All require Authentication)
+
+### Get All Notes
+```
+GET /api/notes
+Authorization: Bearer <jwt_token>
+
+Success Response (200):
+{
+  "success": true,
+  "count": number,
+  "notes": [
+    {
+      "_id": "note_id",
+      "title": "note_title",
+      "content": "note_content",
+      "tag": "note_tag",
+      "user": "user_id",
+      "date": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+
+Error Responses:
+401: { "error": "Please authenticate using a valid token" }
+500: { "success": false, "error": "Internal Server Error" }
+```
+
+### Create Note
+```
+POST /api/notes
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+Request Body:
+{
+  "title": "string (required)",
+  "content": "string (optional, default: '')",
+  "tag": "string (optional, default: 'General')"
+}
+
+Success Response (201):
+{
+  "success": true,
+  "note": {
+    "_id": "note_id",
+    "title": "note_title",
+    "content": "note_content",
+    "tag": "note_tag",
+    "user": "user_id",
+    "date": "2024-01-01T00:00:00.000Z"
+  }
+}
+
+Error Responses:
+400: { "success": false, "error": "Title is required" }
+401: { "error": "Please authenticate using a valid token" }
+500: { "success": false, "error": "Internal Server Error" }
+```
+
+### Get Specific Note
+```
+GET /api/notes/:id
+Authorization: Bearer <jwt_token>
+
+Success Response (200):
+{
+  "success": true,
+  "note": {
+    "_id": "note_id",
+    "title": "note_title",
+    "content": "note_content",
+    "tag": "note_tag",
+    "user": "user_id",
+    "date": "2024-01-01T00:00:00.000Z"
+  }
+}
+
+Error Responses:
+400: { "success": false, "error": "Invalid note ID" }
+401: { "error": "Please authenticate using a valid token" }
+401: { "success": false, "error": "Not authorized to access this note" }
+404: { "success": false, "error": "Note not found" }
+500: { "success": false, "error": "Internal Server Error" }
+```
+
+### Update Note
+```
+PUT /api/notes/:id
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+Request Body:
+{
+  "title": "string (optional)",
+  "content": "string (optional)",
+  "tag": "string (optional)"
+}
+
+Success Response (200):
+{
+  "success": true,
+  "note": {
+    "_id": "note_id",
+    "title": "updated_title",
+    "content": "updated_content",
+    "tag": "updated_tag",
+    "user": "user_id",
+    "date": "2024-01-01T00:00:00.000Z"
+  }
+}
+
+Error Responses:
+400: { "success": false, "error": "Invalid note ID" }
+401: { "error": "Please authenticate using a valid token" }
+401: { "success": false, "error": "Not authorized to update this note" }
+404: { "success": false, "error": "Note not found" }
+500: { "success": false, "error": "Internal Server Error" }
+```
+
+### Delete Note
+```
+DELETE /api/notes/:id
+Authorization: Bearer <jwt_token>
+
+Success Response (200):
+{
+  "success": true,
+  "message": "Note has been deleted successfully"
+}
+
+Error Responses:
+400: { "success": false, "error": "Invalid note ID" }
+401: { "error": "Please authenticate using a valid token" }
+401: { "success": false, "error": "Not authorized to delete this note" }
+404: { "success": false, "error": "Note not found" }
+500: { "success": false, "error": "Internal Server Error" }
+```
+
+## Authentication Details
+
+**JWT Token:**
+- Expires in 30 days
+- Include in Authorization header as: `Bearer <token>`
+- Token payload contains: `{ user: { id: "user_id" } }`
+
+**Headers for authenticated requests:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+## Frontend Development Requirements
+
+Create a React-based notes taking application with the following features:
+
+### Core Features & API Integration
+- **Login/Register pages** with forms using above auth APIs
+- **Notes Dashboard** displaying all notes in cards/grid using GET /api/notes
+- **Create/Edit/Delete** notes using POST, PUT, DELETE /api/notes endpoints
+- **Token Management:** Store JWT token in localStorage, add to all authenticated requests
+
+### Additional Features
+- **Search Notes:** Real-time search bar filtering notes by title/content/tags
+- **Filter Notes:** Filter by tags and sort by date/title
+- **Dark Mode Toggle:** Theme switcher with localStorage persistence
+- **Mobile Responsive:** Clean layout working on all screen sizes
+- **Toast Notifications:** Success/error messages for all API operations
+- **Minimal Design:** Clean UI with modern fonts (Inter/Poppins), subtle shadows, rounded corners
+
+### Technical Stack
+- **React 18+** with functional components and hooks
+- **React Router** for navigation and protected routes
+- **Axios** for API calls
+- **Context/State management** for auth, theme, and notes
+- **CSS/Tailwind/Styled Components** for styling
+- **React Hot Toast** for notifications
+
+### Key Components Needed
+- Login/Register forms
+- Protected routes wrapper
+- Notes dashboard with search/filter bar
+- Note card component
+- Create/Edit note modal/form
+- Theme toggle button
+- Toast notification system

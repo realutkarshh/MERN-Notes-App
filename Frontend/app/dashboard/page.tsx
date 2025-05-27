@@ -1,70 +1,88 @@
-"use client"
+"use client";
 
-import { useAuth } from "@/contexts/AuthContext"
-import { useState, useEffect } from "react"
-import ProtectedRoute from "@/components/ProtectedRoute"
-import Header from "@/components/Header"
-import SearchAndFilter from "@/components/SearchAndFilter"
-import NoteCard from "@/components/NoteCard"
-import NoteModal from "@/components/NoteModal"
-import { NotesProvider, useNotes, type Note } from "@/contexts/NotesContext"
-import { Plus, FileText } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect } from "react";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import Header from "@/components/Header";
+import SearchAndFilter from "@/components/SearchAndFilter";
+import NoteCard from "@/components/NoteCard";
+import NoteModal from "@/components/NoteModal";
+import { NotesProvider, useNotes, type Note } from "@/contexts/NotesContext";
+import { Plus, FileText } from "lucide-react";
 
 function DashboardContent() {
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingNote, setEditingNote] = useState<Note | null>(null)
-  const { filteredNotes, createNote, updateNote, deleteNote, loading, fetchNotes } = useNotes()
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const {
+    filteredNotes,
+    createNote,
+    updateNote,
+    deleteNote,
+    loading,
+    fetchNotes,
+  } = useNotes();
 
-  const { user } = useAuth()
+  const { user } = useAuth();
 
   useEffect(() => {
-    fetchNotes()
-  }, [])
+    fetchNotes();
+  }, []);
 
-  const handleCreateNote = async (noteData: { title: string; content: string; tag: string }) => {
-    await createNote(noteData)
-    setIsModalOpen(false)
-  }
+  const handleCreateNote = async (noteData: {
+    title: string;
+    content: string;
+    tag: string;
+  }) => {
+    await createNote(noteData);
+    setIsModalOpen(false);
+  };
 
-  const handleUpdateNote = async (noteData: { title: string; content: string; tag: string }) => {
+  const handleUpdateNote = async (noteData: {
+    title: string;
+    content: string;
+    tag: string;
+  }) => {
     if (editingNote) {
-      await updateNote(editingNote._id, noteData)
-      setEditingNote(null)
-      setIsModalOpen(false)
+      await updateNote(editingNote._id, noteData);
+      setEditingNote(null);
+      setIsModalOpen(false);
     }
-  }
+  };
 
   const handleEditNote = (note: Note) => {
-    setEditingNote(note)
-    setIsModalOpen(true)
-  }
+    setEditingNote(note);
+    setIsModalOpen(true);
+  };
 
   const handleDeleteNote = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this note?")) {
-      await deleteNote(id)
+      await deleteNote(id);
     }
-  }
+  };
 
   const handleCloseModal = () => {
-    setIsModalOpen(false)
-    setEditingNote(null)
-  }
+    setIsModalOpen(false);
+    setEditingNote(null);
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
-            <h2 className="text-3xl font-bold text-foreground">{user?.name}'s Notes</h2>
-            <p className="text-muted-foreground mt-1">
-              {filteredNotes.length} {filteredNotes.length === 1 ? "note" : "notes"}
+            <h2 className="text-2xl sm:text-3xl font-normal text-foreground">
+              {user?.name}'s Notes
+            </h2>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+              {filteredNotes.length}{" "}
+              {filteredNotes.length === 1 ? "note" : "notes"}
             </p>
           </div>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            className="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
           >
             <Plus className="h-4 w-4" />
             <span>New Note</span>
@@ -80,7 +98,9 @@ function DashboardContent() {
         ) : filteredNotes.length === 0 ? (
           <div className="text-center py-16">
             <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-foreground mb-2">No notes found</h3>
+            <h3 className="text-xl font-semibold text-foreground mb-2">
+              No notes found
+            </h3>
             <p className="text-muted-foreground mb-6">
               {filteredNotes.length === 0 && !loading
                 ? "Create your first note to get started"
@@ -97,7 +117,12 @@ function DashboardContent() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredNotes.map((note) => (
-              <NoteCard key={note._id} note={note} onEdit={handleEditNote} onDelete={handleDeleteNote} />
+              <NoteCard
+                key={note._id}
+                note={note}
+                onEdit={handleEditNote}
+                onDelete={handleDeleteNote}
+              />
             ))}
           </div>
         )}
@@ -111,7 +136,7 @@ function DashboardContent() {
         />
       </main>
     </div>
-  )
+  );
 }
 
 export default function Dashboard() {
@@ -121,5 +146,5 @@ export default function Dashboard() {
         <DashboardContent />
       </NotesProvider>
     </ProtectedRoute>
-  )
+  );
 }

@@ -11,7 +11,7 @@ export default function Header() {
     <header className="bg-card border-b border-border px-6 py-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-primary">Notes App</h1>
+          <h1 className="text-2xl font-normal text-primary">NoteStack</h1>
         </div>
 
         <div className="flex items-center space-x-4">

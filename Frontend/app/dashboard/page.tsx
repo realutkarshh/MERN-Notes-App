@@ -1,5 +1,6 @@
 "use client"
 
+import { useAuth } from "@/contexts/AuthContext"
 import { useState, useEffect } from "react"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import Header from "@/components/Header"
@@ -13,6 +14,8 @@ function DashboardContent() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingNote, setEditingNote] = useState<Note | null>(null)
   const { filteredNotes, createNote, updateNote, deleteNote, loading, fetchNotes } = useNotes()
+
+  const { user } = useAuth()
 
   useEffect(() => {
     fetchNotes()
@@ -54,7 +57,7 @@ function DashboardContent() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-3xl font-bold text-foreground">My Notes</h2>
+            <h2 className="text-3xl font-bold text-foreground">{user?.name}'s Notes</h2>
             <p className="text-muted-foreground mt-1">
               {filteredNotes.length} {filteredNotes.length === 1 ? "note" : "notes"}
             </p>

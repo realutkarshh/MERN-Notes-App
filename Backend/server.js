@@ -23,11 +23,23 @@ app.get('/', (req, res) => {
 //   credentials: true // if you're using cookies
 // }));
 
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://mern-notes-app-tawny.vercel.app'
+];
+
 app.use(cors({
-  origin: 'https://mern-notes-app-tawny.vercel.app/', // allow this origin
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true // if you're using cookies
+  credentials: true, // If using cookies or auth headers
 }));
+
 
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/notesapp')

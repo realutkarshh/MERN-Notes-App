@@ -253,6 +253,27 @@ router.post('/receive', fetchUser, async (req, res) => {
   try {
     const { noteId, title, content, tag, originalDate, sharedBy } = req.body;
 
+    const requestKey = `${req.user.id}-${noteId}-${sharedBy}`;
+
+    if (recentRequests.has(requestKey)) {
+      const lastRequest = recentRequests.get(requestKey);
+      if (Date.now() - lastRequest < 10000) { // 10 seconds
+        return res.status(429).json({ 
+          success: false, 
+          error: "Request too recent, please wait before trying again" 
+        });
+      }
+    }
+
+    recentRequests.set(requestKey, Date.now());
+    
+    // Clean up old entries (older than 1 minute)
+    for (const [key, timestamp] of recentRequests.entries()) {
+      if (Date.now() - timestamp > 60000) {
+        recentRequests.delete(key);
+      }
+    }
+
     // Validation
     if (!title || !noteId) {
       return res.status(400).json({ 

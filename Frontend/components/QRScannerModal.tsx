@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { X, Camera, Upload } from "lucide-react";
-import { QrReader } from "react-qr-reader";
+import { QrReader }  from "react-qr-reader";
 
 interface QRScannerModalProps {
   isOpen: boolean;

@@ -38,7 +38,7 @@ export default function NoteDetailPage() {
         }
 
         const baseUrl =
-          process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000"; // Adjust port as needed
+          process.env.NEXT_PUBLIC_BASE_URL || "https://mern-notes-app-gtab.onrender.com/api"; // Adjust port as needed
         console.log("API URL:", `${baseUrl}/notes/${id}`);
 
         console.log("Token being sent:", token);

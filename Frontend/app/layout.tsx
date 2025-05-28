@@ -9,9 +9,13 @@ import { Toaster } from "react-hot-toast"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Notes App",
+  title: "NoteStack",
+  icons: {
+    icon: "/favicon.png", // optional if in /public
+  },
   description: "A modern notes taking application",
     generator: 'v0.dev'
+  
 }
 
 export default function RootLayout({

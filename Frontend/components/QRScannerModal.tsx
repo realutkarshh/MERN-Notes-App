@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { X, Camera, Upload } from "lucide-react";
 
@@ -19,77 +19,72 @@ export default function QRScannerModal({
   const [scanner, setScanner] = useState<Html5Qrcode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [success, setSuccess] = useState(false);
   
-  // Multiple refs to prevent any race conditions
+  // Use refs to prevent race conditions and ensure immediate state changes
   const isProcessingRef = useRef(false);
   const hasProcessedRef = useRef(false);
-  const currentRequestRef = useRef<AbortController | null>(null);
-  const scannerStartedRef = useRef(false);
+  const lastProcessedCodeRef = useRef<string>("");
 
-  // Debounced success handler to prevent rapid calls
-  const handleScanSuccess = useCallback(async (text: string) => {
-    // Multiple checks to ensure single execution
-    if (isProcessingRef.current || hasProcessedRef.current || processing || success) {
-      console.log("Scan blocked: already processing or completed");
+  const handleScanSuccess = async (text: string) => {
+    // Triple check to prevent any duplicates
+    if (isProcessingRef.current || hasProcessedRef.current || lastProcessedCodeRef.current === text) {
+      console.log("Scan blocked - already processing or duplicate");
       return;
     }
 
-    // Immediately set all flags
+    // Immediately set flags to block any further processing
     isProcessingRef.current = true;
     hasProcessedRef.current = true;
+    lastProcessedCodeRef.current = text;
     setProcessing(true);
 
-    console.log("Processing QR code...");
+    console.log("Processing QR code:", text);
 
     try {
       // Stop scanner immediately to prevent further scans
-      await stopScannerImmediate();
+      if (scanner) {
+        console.log("Stopping scanner...");
+        await scanner.stop();
+        await scanner.clear();
+        setScanner(null);
+      }
 
       const shareData = JSON.parse(text);
       if (!shareData.noteId || !shareData.title) {
         throw new Error("Invalid QR code format");
       }
 
-      // Create abort controller for this request
-      const abortController = new AbortController();
-      currentRequestRef.current = abortController;
-
-      await receiveSharedNote(shareData, abortController.signal);
+      console.log("Calling receiveSharedNote...");
+      await receiveSharedNote(shareData);
       
-      // Only proceed if request wasn't aborted
-      if (!abortController.signal.aborted) {
-        setSuccess(true);
-        console.log("Note received successfully");
-        
-        // Small delay before triggering callback to ensure UI updates
-        setTimeout(() => {
-          onNoteReceived();
-          handleClose();
-        }, 500);
-      }
+      console.log("Note received successfully, calling callbacks...");
+      onNoteReceived();
+      
+      // Close modal after successful processing
+      setTimeout(() => {
+        handleClose();
+      }, 1000); // Small delay to show success
+
     } catch (err: any) {
       console.error("QR Scan error:", err);
+      setError(err.message || "Failed to process QR code");
       
       // Reset flags on error so user can try again
       isProcessingRef.current = false;
       hasProcessedRef.current = false;
+      lastProcessedCodeRef.current = "";
       setProcessing(false);
-      
-      if (err.name !== 'AbortError') {
-        setError(err.message || "Failed to process QR code");
-      }
     }
-  }, [processing, success, onNoteReceived]);
+  };
 
-  const handleScanError = useCallback((err: string) => {
+  const handleScanError = (err: string) => {
     // Only log significant errors
     if (!err.includes("NotFoundException") && !err.includes("No QR code found")) {
       console.warn("QR scan error:", err);
     }
-  }, []);
+  };
 
-  const receiveSharedNote = async (shareData: any, signal: AbortSignal) => {
+  const receiveSharedNote = async (shareData: any) => {
     const token =
       localStorage.getItem("auth-token") ||
       localStorage.getItem("token") ||
@@ -102,6 +97,8 @@ export default function QRScannerModal({
       process.env.NEXT_PUBLIC_BASE_URL ||
       "https://mern-notes-app-gtab.onrender.com/api";
 
+    console.log("Making API request to receive note...");
+    
     const res = await fetch(`${baseUrl}/notes/receive`, {
       method: "POST",
       headers: {
@@ -109,12 +106,7 @@ export default function QRScannerModal({
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(shareData),
-      signal, // Add abort signal to request
     });
-
-    if (signal.aborted) {
-      throw new Error("Request aborted");
-    }
 
     if (!res.ok) {
       const errorData = await res.json();
@@ -122,38 +114,26 @@ export default function QRScannerModal({
     }
 
     const result = await res.json();
-    
-    if (!signal.aborted) {
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("Note Added Successfully!", {
-          body: `"${shareData.title}" has been added to your notes`,
-          icon: "/favicon.ico",
-        });
-      }
-    }
-    
-    return result;
-  };
+    console.log("API response:", result);
 
-  const stopScannerImmediate = async () => {
-    if (scanner && scannerStartedRef.current) {
-      try {
-        await scanner.stop();
-        await scanner.clear();
-        scannerStartedRef.current = false;
-      } catch (err) {
-        console.error("Error stopping scanner:", err);
-      }
-      setScanner(null);
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Note Added Successfully!", {
+        body: `"${shareData.title}" has been added to your notes`,
+        icon: "/favicon.ico",
+      });
+    } else {
+      alert("Note Added Successfully!");
     }
   };
 
   const startScanner = async () => {
-    if (!scannerRef.current || isProcessingRef.current || hasProcessedRef.current || scannerStartedRef.current) {
+    if (!scannerRef.current || isProcessingRef.current || scanner) {
+      console.log("Cannot start scanner - conditions not met");
       return;
     }
 
     try {
+      console.log("Starting QR scanner...");
       const scannerInstance = new Html5Qrcode("qr-scanner");
       setScanner(scannerInstance);
 
@@ -163,103 +143,91 @@ export default function QRScannerModal({
           fps: 3, // Further reduced FPS
           qrbox: { width: 250, height: 250 },
           aspectRatio: 1.0,
-          disableFlip: false,
         },
         handleScanSuccess,
         handleScanError
       );
       
-      scannerStartedRef.current = true;
+      console.log("QR scanner started successfully");
     } catch (err: any) {
       console.error("Failed to start scanner:", err);
       setError("Camera access denied or unavailable");
-      scannerStartedRef.current = false;
     }
   };
 
-  const handleClose = useCallback(async () => {
-    console.log("Closing scanner modal");
-    
-    // Abort any ongoing request
-    if (currentRequestRef.current) {
-      currentRequestRef.current.abort();
-      currentRequestRef.current = null;
+  const stopScanner = async () => {
+    if (scanner) {
+      try {
+        console.log("Stopping scanner...");
+        await scanner.stop();
+        await scanner.clear();
+        console.log("Scanner stopped successfully");
+      } catch (err) {
+        console.error("Error stopping scanner:", err);
+      }
+      setScanner(null);
     }
+  };
 
-    // Stop scanner
-    await stopScannerImmediate();
+  const handleClose = async () => {
+    console.log("Closing QR scanner modal...");
     
     // Reset all states and refs
     isProcessingRef.current = false;
     hasProcessedRef.current = false;
-    scannerStartedRef.current = false;
+    lastProcessedCodeRef.current = "";
     setProcessing(false);
-    setSuccess(false);
     setError(null);
     
+    await stopScanner();
     onClose();
-  }, [onClose]);
+  };
 
-  const resetAndRetry = useCallback(() => {
-    // Reset all flags and states
+  const resetAndRetry = async () => {
+    console.log("Resetting scanner for retry...");
+    
+    // Reset all flags
     isProcessingRef.current = false;
     hasProcessedRef.current = false;
-    scannerStartedRef.current = false;
+    lastProcessedCodeRef.current = "";
     setProcessing(false);
-    setSuccess(false);
     setError(null);
     
-    // Abort any ongoing request
-    if (currentRequestRef.current) {
-      currentRequestRef.current.abort();
-      currentRequestRef.current = null;
-    }
-    
-    // Restart scanner after a brief delay
-    setTimeout(() => {
-      startScanner();
-    }, 100);
-  }, []);
+    // Restart scanner
+    await stopScanner();
+    setTimeout(startScanner, 500);
+  };
 
   useEffect(() => {
     if (isOpen) {
-      // Reset everything when opening
+      console.log("QR Scanner modal opened");
+      
+      // Reset all states when opening
       isProcessingRef.current = false;
       hasProcessedRef.current = false;
-      scannerStartedRef.current = false;
+      lastProcessedCodeRef.current = "";
       setProcessing(false);
-      setSuccess(false);
       setError(null);
       
-      if (currentRequestRef.current) {
-        currentRequestRef.current.abort();
-        currentRequestRef.current = null;
-      }
-      
-      // Start scanner with delay to ensure modal is rendered
+      // Start scanner with delay to ensure DOM is ready
       const timer = setTimeout(() => {
         startScanner();
-      }, 200);
+      }, 300);
       
       return () => clearTimeout(timer);
     } else {
-      // Clean up when closing
-      if (currentRequestRef.current) {
-        currentRequestRef.current.abort();
-        currentRequestRef.current = null;
-      }
-      stopScannerImmediate();
+      console.log("QR Scanner modal closed");
+      stopScanner();
     }
   }, [isOpen]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (currentRequestRef.current) {
-        currentRequestRef.current.abort();
-        currentRequestRef.current = null;
-      }
-      stopScannerImmediate();
+      console.log("QR Scanner component unmounting");
+      isProcessingRef.current = false;
+      hasProcessedRef.current = false;
+      stopScanner();
     };
   }, []);
 
@@ -280,35 +248,22 @@ export default function QRScannerModal({
           </button>
         </div>
 
-        {/* Content */}
-        {success ? (
+        {/* Scanner */}
+        {processing ? (
           <div className="text-center py-8">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Success!</h3>
-            <p className="text-gray-600">Note has been added to your collection.</p>
-            <p className="text-sm text-gray-500 mt-2">Closing in a moment...</p>
-          </div>
-        ) : processing ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Processing QR Code</h3>
-            <p className="text-gray-600">Adding note to your collection...</p>
-            <p className="text-sm text-gray-500 mt-2">Please do not close this window</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
+            <p className="text-gray-600 font-medium">Adding note to your collection...</p>
+            <p className="text-sm text-gray-500 mt-2">This will only take a moment</p>
           </div>
         ) : (
           <div>
             <p className="text-center text-gray-600 mb-4">
-              Point your camera at the QR code
+              Point your camera at the QR code to receive a shared note
             </p>
             <div 
               id="qr-scanner" 
               ref={scannerRef} 
-              className="w-full border rounded-lg overflow-hidden"
-              style={{ minHeight: '250px' }}
+              className="w-full bg-gray-100 rounded-lg min-h-[250px] flex items-center justify-center"
             />
             <button
               onClick={handleClose}
@@ -317,25 +272,17 @@ export default function QRScannerModal({
             >
               Cancel Scanning
             </button>
-            
             {error && (
-              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-600 text-sm text-center mb-3">{error}</p>
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-600 text-sm text-center mb-2">{error}</p>
                 <button
                   onClick={resetAndRetry}
-                  className="w-full px-3 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
-                  disabled={processing}
+                  className="w-full px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
                 >
                   Try Again
                 </button>
               </div>
             )}
-
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-blue-700 text-xs text-center">
-                💡 Hold your device steady and ensure the QR code is well-lit and within the frame
-              </p>
-            </div>
           </div>
         )}
       </div>

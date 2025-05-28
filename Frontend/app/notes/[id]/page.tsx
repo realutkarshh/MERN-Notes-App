@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { QrCode, Share } from "lucide-react";
+import QRCodeModal from "@/components/QRCodeModal";
 
 interface Note {
   _id: string;
@@ -19,6 +21,7 @@ export default function NoteDetailPage() {
   const [note, setNote] = useState<Note | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchNote = async () => {
@@ -30,23 +33,20 @@ export default function NoteDetailPage() {
           localStorage.getItem("authToken") ||
           localStorage.getItem("jwt");
 
-        console.log("Available localStorage keys:", Object.keys(localStorage));
-        console.log("Found token:", token ? "Yes" : "No");
+        
 
         if (!token) {
           throw new Error("Please log in to view this note");
         }
 
         const baseUrl =
-          process.env.NEXT_PUBLIC_BASE_URL || "https://mern-notes-app-gtab.onrender.com/api"; // Adjust port as needed
-        console.log("API URL:", `${baseUrl}/notes/${id}`);
-
-        console.log("Token being sent:", token);
-
-        const res = await fetch(`${baseUrl}/notes/${id}`, {
+        //   process.env.NEXT_PUBLIC_BASE_URL || "https://mern-notes-app-gtab.onrender.com/api";
+           "http:localhost:5000/api";
+        
+        const res = await fetch(`https://mern-notes-app-gtab.onrender.com/api/notes/${id}`, {
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`, // Changed to match your middleware
+            Authorization: `Bearer ${token}`,
           },
         });
 
@@ -76,6 +76,15 @@ export default function NoteDetailPage() {
       fetchNote();
     }
   }, [id]);
+
+  const handleShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      alert("Link copied to clipboard!");
+    } catch (err) {
+      alert("Failed to copy link.");
+    }
+  };
 
   if (loading) {
     return (
@@ -117,7 +126,7 @@ export default function NoteDetailPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 sm:py-10">
-      {/* Top bar with back and share */}
+      {/* Top bar with back and share options */}
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={() => window.history.back()}
@@ -125,30 +134,41 @@ export default function NoteDetailPage() {
         >
           ← Back to Dashboard
         </button>
-        <button
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(window.location.href);
-              alert("Link copied to clipboard!");
-            } catch (err) {
-              alert("Failed to copy link.");
-            }
-          }}
-          className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition"
-        >
-          Share
-        </button>
+        
+        {/* Share Options */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setQrModalOpen(true)}
+            className="flex items-center gap-2 text-sm bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 transition"
+          >
+            <QrCode className="h-4 w-4" />
+            Generate QR
+          </button>
+          <button
+            onClick={handleShareLink}
+            className="flex items-center gap-2 text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition"
+          >
+            <Share className="h-4 w-4" />
+            Share Link
+          </button>
+        </div>
       </div>
 
       {/* Note content */}
       <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3">{note.title}</h1>
-      {/* <p className="text-gray-500 text-sm mb-1">Tag: {note.tag}</p> */}
       <p className="text-sm text-gray-400 mb-4">
         Created by You on: {new Date(note.date).toLocaleString()}
       </p>
       <div className="prose prose-sm sm:prose-base whitespace-pre-wrap text-foreground">
         {note.content}
       </div>
+
+      {/* QR Code Modal */}
+      <QRCodeModal
+        isOpen={qrModalOpen}
+        onClose={() => setQrModalOpen(false)}
+        noteId={id}
+      />
     </div>
   );
 }

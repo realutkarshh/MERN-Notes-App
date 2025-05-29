@@ -139,7 +139,7 @@ export default function NoteDetailPage() {
         <div className="flex gap-2">
           <button
             onClick={() => setQrModalOpen(true)}
-            className="flex items-center gap-2 text-sm bg-card text-white px-3 py-1.5 rounded hover:bg-gray-900 transition"
+            className="flex items-center gap-2 text-sm bg-card text-foreground px-3 py-1.5 rounded hover:bg-gray-900 transition"
           >
             <QrCode className="h-4 w-4" />
             Share via QR

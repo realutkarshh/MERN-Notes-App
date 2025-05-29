@@ -109,7 +109,7 @@ function DashboardContent() {
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <button
               onClick={() => setQrScannerOpen(true)}
-              className="flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              className="flex items-center justify-center space-x-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors"
             >
               <QrCode className="h-4 w-4" />
               <span>Scan QR Code</span>

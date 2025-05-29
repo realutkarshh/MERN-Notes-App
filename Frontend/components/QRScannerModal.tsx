@@ -140,7 +140,7 @@ export default function QRScannerModal({
       await scannerInstance.start(
         { facingMode: "environment" },
         {
-          fps: 3, // Further reduced FPS
+          fps: 2, // Further reduced FPS
           qrbox: { width: 250, height: 250 },
           aspectRatio: 1.0,
         },

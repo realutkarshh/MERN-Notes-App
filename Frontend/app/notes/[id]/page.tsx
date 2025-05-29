@@ -142,15 +142,15 @@ export default function NoteDetailPage() {
             className="flex items-center gap-2 text-sm bg-card text-white px-3 py-1.5 rounded hover:bg-gray-900 transition"
           >
             <QrCode className="h-4 w-4" />
-            Generate QR
+            Share via QR
           </button>
-          <button
+          {/* <button
             onClick={handleShareLink}
             className="flex items-center gap-2 text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition"
           >
             <Share className="h-4 w-4" />
             Share Link
-          </button>
+          </button> */}
         </div>
       </div>
 

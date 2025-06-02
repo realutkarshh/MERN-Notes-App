@@ -321,7 +321,7 @@ export default function NoteDetailPage() {
                 value={editorTag}
                 onChange={(e) => setEditorTag(e.target.value)}
                 placeholder="General"
-                className="px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-2 py-1 text-sm bg-card text-foreground border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           )}

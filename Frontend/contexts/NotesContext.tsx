@@ -23,8 +23,8 @@ interface NotesContextType {
   setSearchTerm: (term: string) => void
   setSelectedTag: (tag: string) => void
   setSortBy: (sort: "date" | "title") => void
-  createNote: (note: Omit<Note, "_id" | "user" | "date">) => Promise<void>
-  updateNote: (id: string, note: Partial<Note>) => Promise<void>
+  createNote: (note: Omit<Note, "_id" | "user" | "date">) => Promise<Note>
+  updateNote: (id: string, note: Partial<Note>) => Promise<Note>
   deleteNote: (id: string) => Promise<void>
   fetchNotes: () => Promise<void>
   filteredNotes: Note[]
@@ -32,6 +32,29 @@ interface NotesContextType {
 }
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined)
+
+// Create axios instance with interceptor for authentication
+const apiClient = axios.create()
+
+// Add request interceptor to include auth token
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = 
+      localStorage.getItem("auth-token") ||
+      localStorage.getItem("token") ||
+      localStorage.getItem("authToken") ||
+      localStorage.getItem("jwt")
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
 
 export function NotesProvider({ children }: { children: React.ReactNode }) {
   const [notes, setNotes] = useState<Note[]>([])
@@ -43,7 +66,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const fetchNotes = async () => {
     try {
       setLoading(true)
-      const response = await axios.get("/api/notes")
+      const response = await apiClient.get("/api/notes")
 
       if (response.data.success) {
         setNotes(response.data.notes)
@@ -60,49 +83,60 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    const token = localStorage.getItem("token")
+    const token = 
+      localStorage.getItem("auth-token") ||
+      localStorage.getItem("token") ||
+      localStorage.getItem("authToken") ||
+      localStorage.getItem("jwt")
+      
     if (token) {
       fetchNotes()
     }
   }, [])
 
-  const createNote = async (noteData: Omit<Note, "_id" | "user" | "date">) => {
+  const createNote = async (noteData: Omit<Note, "_id" | "user" | "date">): Promise<Note> => {
     try {
       setLoading(true)
-      const response = await axios.post("/api/notes", {
+      const response = await apiClient.post("/api/notes", {
         title: noteData.title,
         content: noteData.content,
         tag: noteData.tag || "General",
       })
 
       if (response.data.success) {
-        setNotes((prev) => [response.data.note, ...prev])
-        toast.success("Note created successfully!")
+        const newNote = response.data.note
+        setNotes((prev) => [newNote, ...prev])
+        return newNote
       }
+      throw new Error("Failed to create note")
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || "Failed to create note"
       toast.error(errorMessage)
+      throw error
     } finally {
       setLoading(false)
     }
   }
 
-  const updateNote = async (id: string, noteData: Partial<Note>) => {
+  const updateNote = async (id: string, noteData: Partial<Note>): Promise<Note> => {
     try {
       setLoading(true)
-      const response = await axios.put(`/api/notes/${id}`, {
+      const response = await apiClient.put(`/api/notes/${id}`, {
         title: noteData.title,
         content: noteData.content,
         tag: noteData.tag,
       })
 
       if (response.data.success) {
-        setNotes((prev) => prev.map((note) => (note._id === id ? response.data.note : note)))
-        toast.success("Note updated successfully!")
+        const updatedNote = response.data.note
+        setNotes((prev) => prev.map((note) => (note._id === id ? updatedNote : note)))
+        return updatedNote
       }
+      throw new Error("Failed to update note")
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || "Failed to update note"
       toast.error(errorMessage)
+      throw error
     } finally {
       setLoading(false)
     }
@@ -111,7 +145,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const deleteNote = async (id: string) => {
     try {
       setLoading(true)
-      const response = await axios.delete(`/api/notes/${id}`)
+      const response = await apiClient.delete(`/api/notes/${id}`)
 
       if (response.data.success) {
         setNotes((prev) => prev.filter((note) => note._id !== id))

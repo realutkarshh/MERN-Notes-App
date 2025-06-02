@@ -3,11 +3,26 @@ const express = require('express');
 const router = express.Router();
 const Note = require('../models/Note');
 const fetchUser = require('../middlewares/fetchUser');
-const { fetchAUser } = require('../controllers/noteController');
+// const { fetchAUser } = require('../controllers/noteController');
 
 // @route   GET /api/notes
 // @desc    Get all notes of logged-in user
-router.get('/', fetchAUser);
+router.get('/', fetchUser, async (req, res) => {
+  try {
+    const notes = await Note.find({ user: req.user.id }).sort({ date: -1 });
+    res.json({
+      success: true,
+      count: notes.length,
+      notes
+    });
+  } catch (error) {
+    console.error('Get notes error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: "Internal Server Error" 
+    });
+  }
+});
 
 // @route   POST /api/notes
 // @desc    Add a new note

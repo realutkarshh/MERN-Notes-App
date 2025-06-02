@@ -2,30 +2,27 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Header from "@/components/Header";
 import SearchAndFilter from "@/components/SearchAndFilter";
 import NoteCard from "@/components/NoteCard";
-import NoteModal from "@/components/NoteModal";
 import QRScannerModal from "@/components/QRScannerModal";
 import { NotesProvider, useNotes, type Note } from "@/contexts/NotesContext";
 import { Plus, FileText, QrCode } from "lucide-react";
 
 function DashboardContent() {
   const [message, setMessage] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
   const {
     filteredNotes,
-    createNote,
-    updateNote,
     deleteNote,
     loading,
     fetchNotes,
   } = useNotes();
 
   const { user } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     const firstName = user?.name?.split(" ")[0] || "User";
@@ -44,41 +41,20 @@ function DashboardContent() {
     fetchNotes();
   }, []);
 
-  const handleCreateNote = async (noteData: {
-    title: string;
-    content: string;
-    tag: string;
-  }) => {
-    await createNote(noteData);
-    setIsModalOpen(false);
-  };
-
-  const handleUpdateNote = async (noteData: {
-    title: string;
-    content: string;
-    tag: string;
-  }) => {
-    if (editingNote) {
-      await updateNote(editingNote._id, noteData);
-      setEditingNote(null);
-      setIsModalOpen(false);
-    }
+  const handleCreateNote = () => {
+    // Navigate to create new note page
+    router.push("/notes/new");
   };
 
   const handleEditNote = (note: Note) => {
-    setEditingNote(note);
-    setIsModalOpen(true);
+    // Navigate to edit note page
+    router.push(`/notes/${note._id}`);
   };
 
   const handleDeleteNote = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this note?")) {
       await deleteNote(id);
     }
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingNote(null);
   };
 
   const handleNoteReceived = () => {
@@ -115,7 +91,7 @@ function DashboardContent() {
               <span>Scan QR Code</span>
             </button>
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleCreateNote}
               className="flex items-center justify-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
             >
               <Plus className="h-4 w-4" />
@@ -150,7 +126,7 @@ function DashboardContent() {
                 <span>Scan QR Code</span>
               </button>
               <button
-                onClick={() => setIsModalOpen(true)}
+                onClick={handleCreateNote}
                 className="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
               >
                 <Plus className="h-4 w-4" />
@@ -170,15 +146,6 @@ function DashboardContent() {
             ))}
           </div>
         )}
-
-        {/* Modals */}
-        <NoteModal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          onSave={editingNote ? handleUpdateNote : handleCreateNote}
-          note={editingNote}
-          loading={loading}
-        />
 
         <QRScannerModal
           isOpen={qrScannerOpen}

@@ -4,69 +4,66 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 222.2 47.4% 11.2%;
-    
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
-    
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
-    
-    --primary: 220 90% 56%;
-    --primary-foreground: 210 40% 98%;
-    
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    
-    --muted: 210 40% 94%;
-    --muted-foreground: 215 16% 42%;
-    
-    --accent: 180 75% 53%;
-    --accent-foreground: 210 40% 98%;
-    
+    --background: 220 20% 98%;             /* Soft off-white */
+    --foreground: 220 40% 10%;             /* Deep navy grey */
+
+    --card: 220 20% 95%;                   /* Light grey card */
+    --card-foreground: 220 40% 10%;        /* Dark text */
+
+    --popover: 220 20% 98%;
+    --popover-foreground: 220 40% 10%;
+
+    --primary: 220 40% 20%;                /* Navy for buttons */
+    --primary-foreground: 0 0% 100%;       /* White text */
+
+    --secondary: 220 20% 90%;              /* Muted grey */
+    --secondary-foreground: 220 40% 10%;
+
+    --muted: 220 20% 85%;
+    --muted-foreground: 220 10% 40%;
+
+    --accent: 220 15% 80%;                 /* Subtle cool grey */
+    --accent-foreground: 220 40% 10%;
+
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 220 90% 56%;
+
+    --border: 220 20% 80%;
+    --input: 220 20% 85%;
+    --ring: 220 40% 20%;
     --radius: 0.5rem;
   }
 
+  .dark {
+    --background: 220 20% 10%;             /* Dark navy grey */
+    --foreground: 0 0% 100%;               /* White text */
 
-    .dark {
-  --background: 240 10% 4%;               /* near black */
-  --foreground: 210 20% 98%;              /* almost white */
+    --card: 220 15% 15%;                   /* Dark card */
+    --card-foreground: 0 0% 100%;          /* White text */
 
-  --card: 240 8% 6%;
-  --card-foreground: 210 20% 98%;
+    --popover: 220 15% 15%;
+    --popover-foreground: 0 0% 100%;
 
-  --popover: 240 8% 6%;
-  --popover-foreground: 210 20% 98%;
+    --primary: 0 0% 100%;                  /* White buttons */
+    --primary-foreground: 220 40% 10%;     /* Dark text */
 
-  --primary: 220 100% 66%;                /* electric blue */
-  --primary-foreground: 240 10% 4%;
+    --secondary: 220 20% 20%;
+    --secondary-foreground: 0 0% 100%;
 
-  --secondary: 240 6% 12%;                /* dark grey */
-  --secondary-foreground: 210 20% 98%;
+    --muted: 220 20% 30%;
+    --muted-foreground: 220 10% 70%;
 
-  --muted: 240 5% 14%;
-  --muted-foreground: 220 10% 60%;
+    --accent: 220 10% 25%;
+    --accent-foreground: 0 0% 100%;
 
-  --accent: 180 85% 55%;                  /* bright teal */
-  --accent-foreground: 240 10% 4%;
+    --destructive: 0 80% 50%;
+    --destructive-foreground: 0 0% 100%;
 
-  --destructive: 0 80% 50%;               /* vivid red */
-  --destructive-foreground: 0 0% 100%;
-
-  --border: 240 6% 14%;
-  --input: 240 6% 14%;
-  --ring: 220 100% 66%;
+    --border: 220 10% 40%;
+    --input: 220 10% 40%;
+    --ring: 0 0% 100%;
+  }
 }
-
-}
-
 
 
 @layer base {

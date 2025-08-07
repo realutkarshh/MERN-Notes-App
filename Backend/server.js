@@ -19,7 +19,7 @@ app.get('/', (req, res) => {
 
 app.use(cors({
   origin: 'https://mern-notes-app-tawny.vercel.app',
-  // origin:"http://localhost:3000",
+  origin:"http://localhost:3000",
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true // if you're using cookies
 }));

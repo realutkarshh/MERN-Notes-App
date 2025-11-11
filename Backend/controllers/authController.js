@@ -48,6 +48,13 @@ const registerUser = async (req, res) => {
 
     const savedUser = await user.save();
 
+    const defaultNotebook = new Notebook({
+      name: 'NoteStack',
+      user: savedUser.id,
+      isDefault: true,
+    });
+    await defaultNotebook.save();
+
     // Create JWT token
     const payload = {
       user: {

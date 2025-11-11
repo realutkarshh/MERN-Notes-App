@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { QrCode, Edit, Save, ArrowLeft, X } from "lucide-react";
 import QRCodeModal from "@/components/QRCodeModal";
 import { useNotes } from "@/contexts/NotesContext";
+import { useNotebooks } from "@/contexts/NotebookContext";
 import toast from "react-hot-toast";
 import axios from "axios";
 
@@ -15,6 +16,10 @@ interface Note {
   content: string;
   tag: string;
   date: string;
+  notebook: {
+    _id: string;
+    name: string;
+  };
 }
 
 interface UnsavedChangesModalProps {
@@ -29,15 +34,15 @@ function UnsavedChangesModal({ isOpen, onSave, onDiscard, onCancel }: UnsavedCha
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full">
         <h3 className="text-lg font-semibold mb-4">Unsaved Changes</h3>
-        <p className="text-gray-600 mb-6">
+        <p className="text-gray-600 dark:text-gray-400 mb-6">
           You have unsaved changes. Would you like to save them before leaving?
         </p>
         <div className="flex gap-3 justify-end">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded transition"
+            className="px-4 py-2 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition"
           >
             Cancel
           </button>
@@ -62,8 +67,10 @@ function UnsavedChangesModal({ isOpen, onSave, onDiscard, onCancel }: UnsavedCha
 export default function NoteDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params.id as string;
   const isNewNote = id === "new";
+  const notebookIdFromQuery = searchParams.get("notebook");
 
   const [note, setNote] = useState<Note | null>(null);
   const [loading, setLoading] = useState(!isNewNote);
@@ -79,11 +86,13 @@ export default function NoteDetailPage() {
   const [editorTitle, setEditorTitle] = useState("");
   const [editorContent, setEditorContent] = useState("");
   const [editorTag, setEditorTag] = useState("");
+  const [editorNotebookId, setEditorNotebookId] = useState("");
 
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const contentRef = useRef<HTMLTextAreaElement>(null);
 
   const { createNote, updateNote, fetchNotes, notes } = useNotes();
+  const { notebooks, defaultNotebook } = useNotebooks();
 
   // Initialize for new note
   useEffect(() => {
@@ -92,12 +101,20 @@ export default function NoteDetailPage() {
       setEditorTitle("");
       setEditorContent("");
       setEditorTag("");
+      
+      // Set notebook from query param or use default
+      if (notebookIdFromQuery) {
+        setEditorNotebookId(notebookIdFromQuery);
+      } else if (defaultNotebook) {
+        setEditorNotebookId(defaultNotebook._id);
+      }
+      
       setIsEditing(true);
       setLoading(false);
       // Focus on title input
       setTimeout(() => titleRef.current?.focus(), 100);
     }
-  }, [isNewNote]);
+  }, [isNewNote, notebookIdFromQuery, defaultNotebook]);
 
   // Fetch existing note - First try from context, then from API
   useEffect(() => {
@@ -109,6 +126,7 @@ export default function NoteDetailPage() {
         setEditorTitle(existingNote.title);
         setEditorContent(existingNote.content);
         setEditorTag(existingNote.tag);
+        setEditorNotebookId(existingNote.notebook._id);
         setLoading(false);
         return;
       }
@@ -118,7 +136,6 @@ export default function NoteDetailPage() {
         try {
           setLoading(true);
           
-          // Use axios with consistent configuration like in NotesContext
           const response = await axios.get(`/api/notes/${id}`);
 
           if (response.data.success && response.data.note) {
@@ -127,6 +144,7 @@ export default function NoteDetailPage() {
             setEditorTitle(fetchedNote.title);
             setEditorContent(fetchedNote.content);
             setEditorTag(fetchedNote.tag);
+            setEditorNotebookId(fetchedNote.notebook._id);
           } else {
             throw new Error("Note not found");
           }
@@ -156,13 +174,14 @@ export default function NoteDetailPage() {
       const hasChanges = 
         editorTitle !== note.title ||
         editorContent !== note.content ||
-        editorTag !== note.tag;
+        editorTag !== note.tag ||
+        editorNotebookId !== note.notebook._id;
       setHasUnsavedChanges(hasChanges);
     } else if (isNewNote && isEditing) {
       const hasContent = editorTitle.trim() || editorContent.trim();
       setHasUnsavedChanges(!!hasContent);
     }
-  }, [editorTitle, editorContent, editorTag, note, isEditing, isNewNote]);
+  }, [editorTitle, editorContent, editorTag, editorNotebookId, note, isEditing, isNewNote]);
 
   // Auto-resize textareas
   const autoResize = (textarea: HTMLTextAreaElement) => {
@@ -186,12 +205,18 @@ export default function NoteDetailPage() {
       return;
     }
 
+    if (!editorNotebookId) {
+      toast.error("Please select a notebook");
+      return;
+    }
+
     try {
       setSaving(true);
       const noteData = {
         title: editorTitle.trim(),
         content: editorContent.trim(),
         tag: editorTag.trim() || "General",
+        notebookId: editorNotebookId,
       };
 
       if (isNewNote) {
@@ -204,7 +229,17 @@ export default function NoteDetailPage() {
         toast.success("Note updated successfully!");
         // Update local note state
         if (note) {
-          setNote({ ...note, ...noteData });
+          const updatedNotebook = notebooks.find(nb => nb._id === editorNotebookId);
+          setNote({ 
+            ...note, 
+            title: noteData.title,
+            content: noteData.content,
+            tag: noteData.tag,
+            notebook: {
+              _id: editorNotebookId,
+              name: updatedNotebook?.name || note.notebook.name
+            }
+          });
         }
         setIsEditing(false);
       }
@@ -269,13 +304,13 @@ export default function NoteDetailPage() {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/3 mb-6"></div>
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-4"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-2"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-6"></div>
           <div className="space-y-2">
-            <div className="h-4 bg-gray-200 rounded"></div>
-            <div className="h-4 bg-gray-200 rounded w-5/6"></div>
-            <div className="h-4 bg-gray-200 rounded w-4/6"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-4/6"></div>
           </div>
         </div>
       </div>
@@ -285,9 +320,9 @@ export default function NoteDetailPage() {
   if (error) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-          <h2 className="text-red-800 font-semibold mb-2">Error</h2>
-          <p className="text-red-600">Failed to load note: {error}</p>
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+          <h2 className="text-red-800 dark:text-red-400 font-semibold mb-2">Error</h2>
+          <p className="text-red-600 dark:text-red-300">Failed to load note: {error}</p>
           <button
             onClick={() => router.push("/dashboard")}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
@@ -302,7 +337,7 @@ export default function NoteDetailPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 sm:py-10">
       {/* Top bar */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <button
           onClick={handleBack}
           className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
@@ -311,7 +346,26 @@ export default function NoteDetailPage() {
           Back to Dashboard
         </button>
         
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {/* Notebook selector (only in edit mode) */}
+          {isEditing && (
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-500">Notebook:</label>
+              <select
+                value={editorNotebookId}
+                onChange={(e) => setEditorNotebookId(e.target.value)}
+                className="px-3 py-1.5 text-sm bg-card text-foreground border border-border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select Notebook</option>
+                {notebooks.map((notebook) => (
+                  <option key={notebook._id} value={notebook._id}>
+                    {notebook.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Tag input (only in edit mode) */}
           {isEditing && (
             <div className="flex items-center gap-2">
@@ -321,7 +375,7 @@ export default function NoteDetailPage() {
                 value={editorTag}
                 onChange={(e) => setEditorTag(e.target.value)}
                 placeholder="General"
-                className="px-2 py-1 text-sm bg-card text-foreground border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-2 py-1 text-sm bg-card text-foreground border border-border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           )}
@@ -330,7 +384,7 @@ export default function NoteDetailPage() {
           {!isNewNote && (
             <button
               onClick={() => setQrModalOpen(true)}
-              className="flex items-center gap-2 text-sm bg-card text-foreground px-3 py-1.5 rounded hover:bg-gray-900 transition"
+              className="flex items-center gap-2 text-sm bg-card text-foreground px-3 py-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition"
             >
               <QrCode className="h-4 w-4" />
               Share via QR
@@ -341,7 +395,7 @@ export default function NoteDetailPage() {
           {isEditing ? (
             <button
               onClick={handleSave}
-              disabled={saving || !editorTitle.trim() || !editorContent.trim() || (!hasUnsavedChanges && !isNewNote)}
+              disabled={saving || !editorTitle.trim() || !editorContent.trim() || !editorNotebookId || (!hasUnsavedChanges && !isNewNote)}
               className="flex items-center gap-2 text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="h-4 w-4" />
@@ -382,9 +436,10 @@ export default function NoteDetailPage() {
 
         {/* Metadata (only in read mode) */}
         {!isEditing && note && (
-          <div className="flex items-center gap-4 text-sm text-gray-500 pb-4 border-b">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 pb-4 border-b">
             <p>Created: {new Date(note.date).toLocaleString()}</p>
             {note.tag && <p>Tag: {note.tag}</p>}
+            {note.notebook && <p>Notebook: {note.notebook.name}</p>}
           </div>
         )}
 

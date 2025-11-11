@@ -47,6 +47,10 @@ try {
   console.error('❌ Error loading note routes:', error.message);
 }
 
+const notebookRoutes = require('./routes/notebookRoutes');
+app.use('/api/notebooks', notebookRoutes);
+
+
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

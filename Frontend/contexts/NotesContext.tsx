@@ -12,6 +12,10 @@ export interface Note {
   tag: string
   user: string
   date: string
+  notebook: {
+    _id: string
+    name: string
+  }
 }
 
 interface NotesContextType {
@@ -20,13 +24,15 @@ interface NotesContextType {
   searchTerm: string
   selectedTag: string
   sortBy: "date" | "title"
+  selectedNotebook: string // Added for notebook filtering
   setSearchTerm: (term: string) => void
   setSelectedTag: (tag: string) => void
   setSortBy: (sort: "date" | "title") => void
-  createNote: (note: Omit<Note, "_id" | "user" | "date">) => Promise<Note>
-  updateNote: (id: string, note: Partial<Note>) => Promise<Note>
+  setSelectedNotebook: (notebookId: string) => void // Added
+  createNote: (note: Omit<Note, "_id" | "user" | "date" | "notebook"> & { notebookId?: string }) => Promise<Note>
+  updateNote: (id: string, note: Partial<Note> & { notebookId?: string }) => Promise<Note>
   deleteNote: (id: string) => Promise<void>
-  fetchNotes: () => Promise<void>
+  fetchNotes: (notebookId?: string) => Promise<void>
   filteredNotes: Note[]
   tags: string[]
 }
@@ -61,12 +67,14 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedTag, setSelectedTag] = useState("")
+  const [selectedNotebook, setSelectedNotebook] = useState("") // Added
   const [sortBy, setSortBy] = useState<"date" | "title">("date")
 
-  const fetchNotes = async () => {
+  const fetchNotes = async (notebookId?: string) => {
     try {
       setLoading(true)
-      const response = await apiClient.get("/api/notes")
+      const url = notebookId ? `/api/notes?notebookId=${notebookId}` : "/api/notes"
+      const response = await apiClient.get(url)
 
       if (response.data.success) {
         setNotes(response.data.notes)
@@ -90,22 +98,26 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       localStorage.getItem("jwt")
       
     if (token) {
-      fetchNotes()
+      fetchNotes(selectedNotebook || undefined)
     }
-  }, [])
+  }, [selectedNotebook]) // Re-fetch when notebook changes
 
-  const createNote = async (noteData: Omit<Note, "_id" | "user" | "date">): Promise<Note> => {
+  const createNote = async (
+    noteData: Omit<Note, "_id" | "user" | "date" | "notebook"> & { notebookId?: string }
+  ): Promise<Note> => {
     try {
       setLoading(true)
       const response = await apiClient.post("/api/notes", {
         title: noteData.title,
         content: noteData.content,
         tag: noteData.tag || "General",
+        notebookId: noteData.notebookId || undefined, // Include notebook if provided
       })
 
       if (response.data.success) {
         const newNote = response.data.note
         setNotes((prev) => [newNote, ...prev])
+        toast.success("Note created successfully!")
         return newNote
       }
       throw new Error("Failed to create note")
@@ -118,18 +130,23 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const updateNote = async (id: string, noteData: Partial<Note>): Promise<Note> => {
+  const updateNote = async (
+    id: string, 
+    noteData: Partial<Note> & { notebookId?: string }
+  ): Promise<Note> => {
     try {
       setLoading(true)
       const response = await apiClient.put(`/api/notes/${id}`, {
         title: noteData.title,
         content: noteData.content,
         tag: noteData.tag,
+        notebookId: noteData.notebookId, // Include notebook if provided
       })
 
       if (response.data.success) {
         const updatedNote = response.data.note
         setNotes((prev) => prev.map((note) => (note._id === id ? updatedNote : note)))
+        toast.success("Note updated successfully!")
         return updatedNote
       }
       throw new Error("Failed to update note")
@@ -166,7 +183,8 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
         note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
         note.tag.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesTag = selectedTag === "" || note.tag === selectedTag
-      return matchesSearch && matchesTag
+      const matchesNotebook = selectedNotebook === "" || note.notebook._id === selectedNotebook
+      return matchesSearch && matchesTag && matchesNotebook
     })
     .sort((a, b) => {
       if (sortBy === "date") {
@@ -185,9 +203,11 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
         loading,
         searchTerm,
         selectedTag,
+        selectedNotebook,
         sortBy,
         setSearchTerm,
         setSelectedTag,
+        setSelectedNotebook,
         setSortBy,
         createNote,
         updateNote,

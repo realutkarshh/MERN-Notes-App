@@ -4,40 +4,38 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import Header from "@/components/Header";
-import SearchAndFilter from "@/components/SearchAndFilter";
+import Navbar from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
 import NoteCard from "@/components/NoteCard";
 import QRScannerModal from "@/components/QRScannerModal";
-import { NotesProvider, useNotes, type Note } from "@/contexts/NotesContext";
+import { useNotes, type Note } from "@/contexts/NotesContext";
+import { useNotebooks } from "@/contexts/NotebookContext";
 import { Plus, FileText, QrCode } from "lucide-react";
 
 function DashboardContent() {
-  const [message, setMessage] = useState("");
+  const [selectedNotebook, setSelectedNotebook] = useState<string | null>(null);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
-  const { filteredNotes, deleteNote, loading, fetchNotes } = useNotes();
-
+  const { filteredNotes, deleteNote, loading, fetchNotes, setSelectedNotebook: setNotebookFilter } = useNotes();
+  const { notebooks, defaultNotebook } = useNotebooks();
   const { user } = useAuth();
   const router = useRouter();
 
+  // Set default notebook on mount
   useEffect(() => {
-    const firstName = user?.name?.split(" ")[0] || "User";
-    const welcomeMessages = [
-      `Hey ${firstName}, ready to note something down?`,
-      `${firstName}, let's get productive today!`,
-      `What's on your mind today, ${firstName}?`,
-      `${firstName}, all your ideas live here.`,
-      `Hello ${firstName}! Your notes are just a scroll away.`,
-    ];
-    const randomIndex = Math.floor(Math.random() * welcomeMessages.length);
-    setMessage(welcomeMessages[randomIndex]);
-  }, [user]);
+    if (defaultNotebook && !selectedNotebook) {
+      setSelectedNotebook(defaultNotebook._id);
+      setNotebookFilter(defaultNotebook._id);
+    }
+  }, [defaultNotebook, selectedNotebook, setNotebookFilter]);
 
-  useEffect(() => {
-    fetchNotes();
-  }, []);
+  const handleSelectNotebook = (notebookId: string) => {
+    setSelectedNotebook(notebookId);
+    setNotebookFilter(notebookId);
+    fetchNotes(notebookId);
+  };
 
   const handleCreateNote = () => {
-    router.push("/notes/new");
+    router.push(`/notes/new?notebook=${selectedNotebook}`);
   };
 
   const handleEditNote = (note: Note) => {
@@ -51,113 +49,109 @@ function DashboardContent() {
   };
 
   const handleNoteReceived = () => {
-    fetchNotes();
+    if (selectedNotebook) {
+      fetchNotes(selectedNotebook);
+    }
+  };
+
+  const currentNotebook = notebooks.find((nb) => nb._id === selectedNotebook);
+  const isDefaultNotebook = currentNotebook?.isDefault || false;
+
+  // Welcome message for default notebook
+  const getWelcomeMessage = () => {
+    const firstName = user?.name?.split(" ")[0] || "User";
+    const messages = [
+      `Hey ${firstName}, ready to note something down?`,
+      `${firstName}, let's get productive today!`,
+      `What's on your mind today, ${firstName}?`,
+      `${firstName}, all your ideas live here.`,
+      `Hello ${firstName}! Your notes are just a scroll away.`,
+    ];
+    return messages[Math.floor(Math.random() * messages.length)];
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <Navbar />
+      
+      <div className="flex">
+        <Sidebar selectedNotebook={selectedNotebook} onSelectNotebook={handleSelectNotebook} />
 
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        {/* Welcome + Actions Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-10">
-          <div className="max-w-xl">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-semibold text-foreground leading-tight">
-              {message}
-            </h2>
-            <p className="mt-3 text-muted-foreground text-base sm:text-lg max-w-md">
-              All your thoughts, ideas, and plans in one place.
-            </p>
-            <p className="text-muted-foreground mt-2 text-sm sm:text-base font-medium">
-              {filteredNotes.length}{" "}
-              {filteredNotes.length === 1 ? "note currently" : "notes currently"}
-            </p>
-          </div>
+        <main className="flex-1 p-6 overflow-y-auto h-[calc(100vh-57px)]">
+          {/* Notebook Header */}
+          {currentNotebook && (
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-foreground mb-2">{currentNotebook.name}</h1>
+              <p className="text-muted-foreground text-sm">
+                Created by you on {new Date(currentNotebook.createdAt).toLocaleDateString()}
+              </p>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={handleCreateNote}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Create Note</span>
+                </button>
+                
+                <button
+                  onClick={() => setQrScannerOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-lg hover:bg-secondary/80 transition-colors font-medium"
+                >
+                  <QrCode className="h-4 w-4" />
+                  <span>Scan QR</span>
+                </button>
+              </div>
+            </div>
+          )}
 
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <button
-              onClick={() => setQrScannerOpen(true)}
-              type="button"
-              aria-label="Scan QR Code"
-              className="flex items-center justify-center space-x-2 px-5 py-3 bg-card text-foreground rounded-lg shadow-sm hover:bg-gray-900 transition-colors font-semibold text-sm"
-            >
-              <QrCode className="h-5 w-5" />
-              <span>Scan QR Code</span>
-            </button>
+          {/* Welcome Message for Default Notebook */}
+          {isDefaultNotebook && filteredNotes.length === 0 && !loading && (
+            <div className="text-center py-16 max-w-2xl mx-auto">
+              <h2 className="text-2xl font-semibold text-foreground mb-3">{getWelcomeMessage()}</h2>
+              <p className="text-muted-foreground mb-8">
+                All your thoughts, ideas, and plans in one place.
+              </p>
+            </div>
+          )}
 
-            <button
-              onClick={handleCreateNote}
-              type="button"
-              aria-label="Create New Note"
-              className="flex items-center justify-center space-x-2 px-5 py-3 bg-primary text-primary-foreground rounded-lg shadow-md hover:bg-primary/90 transition-colors font-semibold text-sm"
-            >
-              <Plus className="h-5 w-5" />
-              <span>New Note</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Search and Filter */}
-        <div className="mb-10">
-          <div className=" rounded-lg p-5 shadow-sm">
-            <SearchAndFilter />
-          </div>
-        </div>
-
-        {/* Notes Grid, Loading, or Empty State */}
-        {loading ? (
-          <div className="flex items-center justify-center py-24">
-            <div className="animate-spin rounded-full h-14 w-14 border-b-4 border-primary"></div>
-          </div>
-        ) : filteredNotes.length === 0 ? (
-          <div className="text-center py-24 max-w-md mx-auto">
-            <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-6" />
-            <h3 className="text-2xl font-semibold text-foreground mb-3">
-              No notes found
-            </h3>
-            <p className="text-muted-foreground mb-8 text-base">
-              {filteredNotes.length === 0 && !loading
-                ? "Create your first note or scan a QR code to get started"
-                : "Try adjusting your search or filter criteria"}
-            </p>
-            <div className="flex flex-col sm:flex-row gap-5 justify-center">
-              <button
-                onClick={() => setQrScannerOpen(true)}
-                type="button"
-                className="inline-flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-colors font-semibold"
-              >
-                <QrCode className="h-5 w-5" />
-                <span>Scan QR Code</span>
-              </button>
+          {/* Notes Grid or Empty State */}
+          {loading ? (
+            <div className="flex items-center justify-center py-24">
+              <div className="animate-spin rounded-full h-14 w-14 border-b-4 border-primary"></div>
+            </div>
+          ) : filteredNotes.length === 0 ? (
+            <div className="text-center py-16 max-w-md mx-auto">
+              <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-6" />
+              <h3 className="text-xl font-semibold text-foreground mb-3">No notes yet</h3>
+              <p className="text-muted-foreground mb-6">
+                Start creating notes in this notebook
+              </p>
               <button
                 onClick={handleCreateNote}
-                type="button"
-                className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg shadow-md hover:bg-primary/90 transition-colors font-semibold"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
               >
                 <Plus className="h-5 w-5" />
-                <span>Create Note</span>
+                <span>Create Your First Note</span>
               </button>
             </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {filteredNotes.map((note) => (
-              <NoteCard
-                key={note._id}
-                note={note}
-                onEdit={handleEditNote}
-                onDelete={handleDeleteNote}
-              />
-            ))}
-          </div>
-        )}
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredNotes.map((note) => (
+                <NoteCard key={note._id} note={note} onEdit={handleEditNote} onDelete={handleDeleteNote} />
+              ))}
+            </div>
+          )}
+        </main>
+      </div>
 
-        <QRScannerModal
-          isOpen={qrScannerOpen}
-          onClose={() => setQrScannerOpen(false)}
-          onNoteReceived={handleNoteReceived}
-        />
-      </main>
+      <QRScannerModal
+        isOpen={qrScannerOpen}
+        onClose={() => setQrScannerOpen(false)}
+        onNoteReceived={handleNoteReceived}
+      />
     </div>
   );
 }
@@ -165,9 +159,7 @@ function DashboardContent() {
 export default function Dashboard() {
   return (
     <ProtectedRoute>
-      <NotesProvider>
-        <DashboardContent />
-      </NotesProvider>
+      <DashboardContent />
     </ProtectedRoute>
   );
 }
